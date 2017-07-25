@@ -19,6 +19,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
@@ -88,7 +89,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case R.id.btn_send:
                 String msg = mEditTextSendMessage.getText().toString();
                 String[] sampleText = {Build.DEVICE, "NotiMessage", "Text message", msg};
-                sendMessage(sampleText);
+                //sendMessage(sampleText, new byte[0]);
                 mEditTextSendMessage.setText("");
                 break;
         }
@@ -102,8 +103,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return enabled;
     }
 
-    //Sends a Notification to the server in the format: {device, app, title, message}
-    private void sendMessage(final String[] notification) {
+    private void sendMessage(final String[] notification, final byte[] bitmap){
         final String IP = "192.168.1.22";
         final int port = 6066;
 
@@ -117,12 +117,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     OutputStream out = s.getOutputStream();
 
                     ObjectOutputStream output = new ObjectOutputStream(out);
-
                     output.writeObject(notification);
                     output.flush();
+
+                    DataOutputStream dos = new DataOutputStream(out);
+                    dos.writeInt(bitmap.length);
+                    dos.write(bitmap, 0, bitmap.length);
+
+                    dos.flush();
                     BufferedReader input = new BufferedReader(new InputStreamReader(s.getInputStream()));
                     final String st = input.readLine();
-
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
@@ -131,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 mTextViewReplyFromServer.setText(s + "\nFrom Server : " + st);
                         }
                     });
-                    output.close();
+                    dos.close();
                     out.close();
                     s.close();
                 } catch (IOException e) {
@@ -139,7 +143,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             }
         });
-
         thread.start();
     }
 
@@ -151,13 +154,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             String title = intent.getStringExtra("title");
             String message = intent.getStringExtra("content");
             String app = intent.getStringExtra("appName");
+            byte[] bitmap = intent.getByteArrayExtra("bitmap");
+
             //Avoid duplicates
             if(!message.equals(prevNotification)) {
                 String[] notification = {device, app, title, message};
-                sendMessage(notification);
+                sendMessage(notification, bitmap);
             }
             prevNotification = message;
         }
     }
-
 }

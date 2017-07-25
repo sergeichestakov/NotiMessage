@@ -1,4 +1,6 @@
 import java.net.*;
+import javax.imageio.ImageIO;
+import java.awt.Image;
 import java.io.*;
 
 public class Server extends Thread {
@@ -14,12 +16,21 @@ public class Server extends Thread {
       while(true) {
          try {
             Socket server = serverSocket.accept();
+            InputStream inputStream = server.getInputStream();
             
-            ObjectInputStream in = new ObjectInputStream(server.getInputStream());
+            ObjectInputStream objectInput = new ObjectInputStream(inputStream);
+            DataInputStream dataInput = new DataInputStream(inputStream);
             
-            String[] notification = (String []) in.readObject();
-            
-            Notification.display(notification);
+            String[] notification = (String []) objectInput.readObject();
+                        
+            int len = dataInput.readInt();
+            byte[] data = new byte[len];
+            if(len > 0) {
+            	dataInput.readFully(data, 0, len);
+            }
+            InputStream byteStream = new ByteArrayInputStream(data);
+            Image img = ImageIO.read(byteStream);
+            Notification.display(notification, img);
             
             DataOutputStream out = new DataOutputStream(server.getOutputStream());
             out.writeUTF("Message Recieved");
@@ -33,7 +44,7 @@ public class Server extends Thread {
    }
    
    public static void main(String [] args) {
-      int port = 6066;
+      final int port = 6066;
       try {
          Thread t = new Server(port);
          t.start();
